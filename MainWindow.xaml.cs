@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Globalization;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.Win32;
 using MrMergePdfStamper.Models;
@@ -11,13 +11,14 @@ namespace MrMergePdfStamper;
 
 public partial class MainWindow : Window
 {
-    private readonly ObservableCollection<PrintJobItem> _items = [];
-    private readonly ImpositionService _impositionService = new(new ExternalToolsRunner());
+    private readonly ObservableCollection<PrintJobItem> _items = new ObservableCollection<PrintJobItem>();
+    private readonly ImpositionService _impositionService = new ImpositionService(new ExternalToolsRunner());
 
     public MainWindow()
     {
         InitializeComponent();
 
+        _items.CollectionChanged += Items_CollectionChanged;
         _items.Add(new PrintJobItem { SourcePage = 1, Copies = 1, SpreadNumber = 1 });
         JobsDataGrid.ItemsSource = _items;
         RecalculateSpreadNumbers();
@@ -135,20 +136,25 @@ public partial class MainWindow : Window
 
     private bool TryReadStampSettings(out double rightMm, out double topMm, out string fontName, out double fontSize)
     {
-        var ok =
-            double.TryParse(RightOffsetTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out rightMm) &&
-            double.TryParse(TopOffsetTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out topMm) &&
-            double.TryParse(FontSizeTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out fontSize);
+        var rightOk = TryParseDouble(RightOffsetTextBox.Text, out rightMm);
+        var topOk = TryParseDouble(TopOffsetTextBox.Text, out topMm);
+        var sizeOk = TryParseDouble(FontSizeTextBox.Text, out fontSize);
 
         fontName = FontNameTextBox.Text.Trim();
 
-        if (!ok || rightMm < 0 || topMm < 0 || fontSize <= 0 || string.IsNullOrWhiteSpace(fontName))
+        if (!rightOk || !topOk || !sizeOk || rightMm < 0 || topMm < 0 || fontSize <= 0 || string.IsNullOrWhiteSpace(fontName))
         {
             MessageBox.Show("Проверьте настройки штампа (числа и имя шрифта).", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
             return false;
         }
 
         return true;
+    }
+
+    private static bool TryParseDouble(string text, out double value)
+    {
+        return double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value)
+               || double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
     }
 
     private void JobsDataGrid_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -161,7 +167,7 @@ public partial class MainWindow : Window
                 return;
             }
 
-            var lines = text.Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries);
+            var lines = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var line in lines)
             {
                 var cols = line.Split('\t', StringSplitOptions.RemoveEmptyEntries);
@@ -181,6 +187,11 @@ public partial class MainWindow : Window
         }
     }
 
+    private void Items_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        RecalculateSpreadNumbers();
+    }
+
     private void RecalculateSpreadNumbers()
     {
         for (var i = 0; i < _items.Count; i++)
@@ -197,5 +208,6 @@ public partial class MainWindow : Window
         TopOffsetTextBox.IsEnabled = enabled;
         FontNameTextBox.IsEnabled = enabled;
         FontSizeTextBox.IsEnabled = enabled;
+        StartButton.IsEnabled = enabled;
     }
 }
