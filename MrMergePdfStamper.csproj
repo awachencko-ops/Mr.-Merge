@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="Tools\qpdf.exe" CopyToOutputDirectory="Always" Condition="Exists('Tools\\qpdf.exe')" />
+    <None Include="Tools\gswin64c.exe" CopyToOutputDirectory="Always" Condition="Exists('Tools\\gswin64c.exe')" />
+    <None Include="Tools\qpdf*.dll" CopyToOutputDirectory="Always" />
+  </ItemGroup>
+</Project>
